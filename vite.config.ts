@@ -23,19 +23,14 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    // Configure the output
-    outDir: "dist",
-    emptyOutDir: true,
-    // Generate cleaner output with explicit filenames
+    // Generate relative paths in the build output
+    assetsDir: "assets",
     rollupOptions: {
       output: {
-        entryFileNames: "assets/[name].js",
-        chunkFileNames: "assets/[name]-[hash].js",
-        assetFileNames: "assets/[name]-[hash].[ext]",
-        // Ensure the main entry point has a predictable name
-        manualChunks: {
-          main: ["./src/main.tsx"],
-        },
+        // Ensure asset paths are relative and proper MIME types are set
+        assetFileNames: "assets/[name].[hash].[ext]",
+        chunkFileNames: "assets/[name].[hash].js",
+        entryFileNames: "assets/[name].[hash].js",
       },
     },
   },
