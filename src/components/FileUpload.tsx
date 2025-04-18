@@ -1,9 +1,9 @@
-
 import React, { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Upload } from "lucide-react";
+import { toast } from "sonner";
 
 interface FileUploadProps {
   onFileUploaded: (defects: DefectData[]) => void;
@@ -38,6 +38,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       // Check file type
       if (selectedFile.type !== "text/plain" && !selectedFile.name.endsWith(".csv")) {
         setError("Please upload a .txt or .csv file");
+        toast.error("Invalid file type. Please upload a .txt or .csv file.");
         setFile(null);
         return;
       }
@@ -54,8 +55,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     setError(null);
     
     try {
+      console.log("Processing file:", file.name, file.type);
       // Read the file content
       const text = await file.text();
+      console.log("File content loaded, length:", text.length);
       
       // Parse the file content based on file type
       let defects: DefectData[] = [];
@@ -148,14 +151,18 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       
       // Pass the parsed defects up to the parent component
       if (defects.length > 0) {
+        console.log("Defects parsed successfully:", defects.length);
         onFileUploaded(defects);
         onAnalysisStart();
+        toast.success(`Successfully processed ${defects.length} defects`);
       } else {
         setError("No defect data could be extracted from the file");
+        toast.error("No defect data could be extracted from the file");
       }
     } catch (err) {
       console.error("Error processing file:", err);
       setError("Error processing file. Please ensure it follows the expected format.");
+      toast.error("Error processing file. Please ensure it follows the expected format.");
     } finally {
       setLoading(false);
     }

@@ -48,13 +48,17 @@ const Index = () => {
     try {
       // Use an absolute path with import.meta.env.BASE_URL to ensure it works with GitHub Pages
       const baseUrl = import.meta.env.BASE_URL || '/';
+      console.log("Loading sample data from:", `${baseUrl}sample-defects.csv`);
+      
       const response = await fetch(`${baseUrl}sample-defects.csv`);
       
       if (!response.ok) {
+        console.error(`Failed to fetch sample data: ${response.status} ${response.statusText}`);
         throw new Error(`Failed to fetch sample data: ${response.status}`);
       }
       
       const csvText = await response.text();
+      console.log("CSV data loaded, length:", csvText.length);
       
       // Parse CSV data using similar logic from FileUpload component
       const rows = csvText.split("\n");
@@ -104,6 +108,7 @@ const Index = () => {
     } catch (error) {
       console.error("Error loading sample data:", error);
       toast.error("Failed to load sample data. Using fallback data instead.");
+      console.log("Using fallback sample data");
       setDefects(sampleDefects);
       setActiveTab("defects");
     }

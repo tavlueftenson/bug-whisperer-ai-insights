@@ -14,6 +14,9 @@ const queryClient = new QueryClient();
 // This helps with GitHub Pages deployment where the app is served from a subdirectory
 const baseUrl = import.meta.env.BASE_URL || '/';
 
+// Log the base URL to help with debugging
+console.log("Base URL:", baseUrl);
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
