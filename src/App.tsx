@@ -15,7 +15,7 @@ const queryClient = new QueryClient();
 const baseUrl = import.meta.env.BASE_URL || '/';
 
 // Log the base URL to help with debugging
-console.log("Base URL:", baseUrl);
+console.log("Base URL in App:", baseUrl);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
