@@ -6,6 +6,7 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  // Setting the correct base path for GitHub Pages
   base: "/bug-whisperer-ai-insights/",
   server: {
     host: "::",
@@ -21,5 +22,16 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Generate relative paths in the build output
+    assetsDir: "assets",
+    rollupOptions: {
+      output: {
+        // Ensure asset paths are relative
+        assetFileNames: "assets/[name].[hash].[ext]",
+        chunkFileNames: "assets/[name].[hash].js",
+        entryFileNames: "assets/[name].[hash].js",
+      },
+    },
+  },
 }));
-

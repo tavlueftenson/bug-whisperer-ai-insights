@@ -10,8 +10,8 @@ import NotFound from "./pages/NotFound";
 // Create a new query client instance
 const queryClient = new QueryClient();
 
-// Get the base URL from the environment or use '/' as default
-// This helps with GitHub Pages deployment where the app is served from a subdirectory
+// Get the base URL from the environment
+// For GitHub Pages, this should be '/bug-whisperer-ai-insights/'
 const baseUrl = import.meta.env.BASE_URL || '/';
 
 // Log the base URL to help with debugging
