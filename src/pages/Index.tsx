@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,6 +9,7 @@ import DefectTable from "@/components/DefectTable";
 import AnalysisLoader from "@/components/AnalysisLoader";
 import { AIAnalysisService } from "@/services/aiAnalysisService";
 import { sampleDefects } from "@/data/sampleDefects";
+import { toast } from "sonner";
 
 const Index = () => {
   // State for tracking application state
@@ -39,14 +39,74 @@ const Index = () => {
       .catch((error) => {
         console.error("Error during analysis:", error);
         setAnalyzing(false);
-        // In a real app, handle this error more gracefully
+        toast.error("Analysis failed. Please try again.");
       });
   };
   
   // Load sample data for demo purposes
-  const loadSampleData = () => {
-    setDefects(sampleDefects);
-    setActiveTab("defects");
+  const loadSampleData = async () => {
+    try {
+      // Use an absolute path with import.meta.env.BASE_URL to ensure it works with GitHub Pages
+      const baseUrl = import.meta.env.BASE_URL || '/';
+      const response = await fetch(`${baseUrl}sample-defects.csv`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch sample data: ${response.status}`);
+      }
+      
+      const csvText = await response.text();
+      
+      // Parse CSV data using similar logic from FileUpload component
+      const rows = csvText.split("\n");
+      const headers = rows[0].split(",");
+      
+      // Map headers to expected fields
+      const subjectIndex = headers.findIndex(h => 
+        h.toLowerCase().includes("subject") || h.toLowerCase().includes("title"));
+      const descIndex = headers.findIndex(h => 
+        h.toLowerCase().includes("description") || h.toLowerCase().includes("desc"));
+      const stepsIndex = headers.findIndex(h => 
+        h.toLowerCase().includes("steps") || h.toLowerCase().includes("reproduce"));
+      const actualIndex = headers.findIndex(h => 
+        h.toLowerCase().includes("actual") || h.toLowerCase().includes("result"));
+      const expectedIndex = headers.findIndex(h => 
+        h.toLowerCase().includes("expected"));
+      const featureIndex = headers.findIndex(h => 
+        h.toLowerCase().includes("feature") || h.toLowerCase().includes("module"));
+      const originIndex = headers.findIndex(h => 
+        h.toLowerCase().includes("origin") || h.toLowerCase().includes("environment"));
+      const testCaseIndex = headers.findIndex(h => 
+        h.toLowerCase().includes("test") || h.toLowerCase().includes("case"));
+      
+      // Process each row
+      const parsedDefects: DefectData[] = [];
+      for (let i = 1; i < rows.length; i++) {
+        if (!rows[i].trim()) continue;
+        
+        const cells = rows[i].split(",");
+        
+        parsedDefects.push({
+          id: `BUG-${i}`,
+          subject: cells[subjectIndex]?.trim() || "Unknown",
+          description: cells[descIndex]?.trim() || "",
+          stepsToReproduce: cells[stepsIndex]?.trim() || "",
+          actualResult: cells[actualIndex]?.trim() || "",
+          expectedResult: cells[expectedIndex]?.trim() || "",
+          featureTag: cells[featureIndex]?.trim() || "Untagged",
+          bugOrigin: cells[originIndex]?.trim() || "Unknown",
+          testCaseId: cells[testCaseIndex]?.trim() || "N/A"
+        });
+      }
+      
+      setDefects(parsedDefects);
+      setActiveTab("defects");
+      toast.success("Sample data loaded successfully");
+    } catch (error) {
+      console.error("Error loading sample data:", error);
+      toast.error("Failed to load sample data. Using fallback data instead.");
+      setDefects(sampleDefects);
+      setActiveTab("defects");
+    }
   };
   
   return (
