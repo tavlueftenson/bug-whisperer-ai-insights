@@ -1,0 +1,58 @@
+
+BUG-001
+Subject: Login fails when email contains special characters
+Description: Users with emails containing '+' or '.' before @ cannot login to the system.
+Steps to Reproduce: 1. Navigate to login page 2. Enter email with '+' character 3. Enter password 4. Click login
+Actual Result: Error message: 'Invalid email format'
+Expected Result: User should be able to log in successfully
+Feature: Authentication
+Origin: Production
+Test Case: TC-AUTH-103
+
+---
+
+BUG-002
+Subject: Profile picture upload fails for large images
+Description: When uploading profile pictures larger than 2MB, the upload fails with no error message.
+Steps to Reproduce: 1. Go to profile page 2. Click 'Change Picture' 3. Select an image larger than 2MB
+Actual Result: Upload spinner keeps spinning indefinitely
+Expected Result: Error message should inform user about file size limitations
+Feature: User Profile
+Origin: UAT
+Test Case: TC-PROF-205
+
+---
+
+BUG-003
+Subject: Dashboard data doesn't refresh automatically
+Description: Dashboard statistics are not updated in real-time as specified in requirements.
+Steps to Reproduce: 1. Login to system 2. Navigate to dashboard 3. Make changes that should affect dashboard in another tab 4. Return to dashboard
+Actual Result: Data remains unchanged until manual refresh
+Expected Result: Dashboard should update automatically every 30 seconds
+Feature: Dashboard
+Origin: Development
+Test Case: TC-DASH-118
+
+---
+
+BUG-004
+Subject: Pagination breaks on search results page
+Description: When searching with certain filters, pagination doesn't work correctly.
+Steps to Reproduce: 1. Go to search page 2. Apply category and date filters 3. Search for 'test' 4. Try to go to page 2
+Actual Result: Page reloads but shows same results from page 1
+Expected Result: Page 2 of search results should be displayed
+Feature: Search
+Origin: UAT
+Test Case: TC-SRCH-312
+
+---
+
+BUG-005
+Subject: Permission error when accessing admin section after password reset
+Description: After resetting password, admin users lose their permissions temporarily.
+Steps to Reproduce: 1. Trigger password reset for admin account 2. Set new password 3. Try to access admin section
+Actual Result: Error: 'You don't have permission to access this page'
+Expected Result: Admin user should retain all permissions after password reset
+Feature: Authentication
+Origin: Production
+Test Case: TC-AUTH-217

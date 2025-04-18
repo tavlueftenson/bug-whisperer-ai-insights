@@ -1,73 +1,71 @@
-# Welcome to your Lovable project
 
-## Project info
+# Bug Whisperer AI - Defect Analysis Tool
 
-**URL**: https://lovable.dev/projects/b59c07f4-ed5a-452c-8cf7-9f12ca56a1f2
+A powerful web application that analyzes software defects/bugs and provides AI-generated insights for process improvement and quality enhancement.
 
-## How can I edit this code?
+## Features
 
-There are several ways of editing your application.
+- **Defect Log Upload**: Upload TXT or CSV files containing structured defect data
+- **Intelligent Parsing**: Automatically extracts defect information from various formats
+- **AI-Powered Analysis**: Identifies patterns, root causes, and metrics from defect data
+- **Visual Insights**: Interactive charts and visualizations of defect distribution
+- **Actionable Recommendations**: AI-generated suggestions for:
+  - Process improvements
+  - Test coverage enhancements
+  - Training needs
 
-**Use Lovable**
+## Data Format
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/b59c07f4-ed5a-452c-8cf7-9f12ca56a1f2) and start prompting.
+The application expects defect logs with the following information:
 
-Changes made via Lovable will be committed automatically to this repo.
+1. **Subject**: Brief description of the defect
+2. **Description**: Detailed explanation of the issue
+3. **Steps to Reproduce**: Instructions to recreate the defect
+4. **Actual Result**: What happens when the defect occurs
+5. **Expected Result**: What should happen instead
+6. **Feature Tag**: The feature/component affected
+7. **Bug Origin Tag**: Environment where the defect was found (Production, UAT, etc.)
+8. **Test Case ID**: Reference to related test case
 
-**Use your preferred IDE**
+## How to Use
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+1. **Upload Your Defect Log**:
+   - Click "Upload" and select your TXT or CSV file
+   - Alternatively, use the "Use Sample Data" button for a demo
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+2. **Review Extracted Defects**:
+   - Verify the defect data was parsed correctly
+   - View a tabular representation of your defects
 
-Follow these steps:
+3. **Generate AI Analysis**:
+   - Click "Analyze" to process your defect data
+   - Wait for the AI to generate insights (typically a few seconds)
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+4. **Explore Insights**:
+   - View key metrics like rework rate, bug bounce rate, and bad fix rate
+   - Examine root cause analysis and distribution charts
+   - Review AI-generated recommendations
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+## Technical Details
 
-# Step 3: Install the necessary dependencies.
-npm i
+This application is built with:
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+- **React**: Frontend framework
+- **TypeScript**: Type-safe JavaScript
+- **TailwindCSS**: Utility-first CSS framework
+- **shadcn/ui**: Component library
+- **Recharts**: Data visualization library
 
-**Edit a file directly in GitHub**
+The AI analysis is performed locally through pattern matching and statistical analysis of defect patterns. In a production environment, this could be connected to more sophisticated AI services.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Development
 
-**Use GitHub Codespaces**
+To run the application locally:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Start the development server: `npm run dev`
 
-## What technologies are used for this project?
+## License
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/b59c07f4-ed5a-452c-8cf7-9f12ca56a1f2) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Copyright © 2025 Bug Whisperer AI - All rights reserved

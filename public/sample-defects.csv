@@ -1,0 +1,7 @@
+
+Subject,Description,Steps to Reproduce,Actual Result,Expected Result,Feature,Origin,Test Case
+Login fails with special characters,Users cannot login when email contains special characters,1. Go to login 2. Enter special char email 3. Submit,Error message shown,Successful login,Authentication,Production,TC-001
+Dashboard data lag,Dashboard not updating in real-time,1. Open dashboard 2. Make changes elsewhere 3. Return to dashboard,No updates visible,Auto-refresh every 30s,Dashboard,UAT,TC-002
+Export corrupts large files,Exporting large data sets creates corrupt files,1. Generate large report 2. Export to Excel,File corrupted,Valid Excel file,Reporting,Development,TC-003
+Search filter not working,Category filter has no effect on results,1. Open search 2. Apply category filter 3. Search,Results ignore filter,Filtered results shown,Search,Production,TC-004
+Mobile menu stays open,Menu doesn't close after selection on mobile,1. Open mobile site 2. Open menu 3. Select item,Menu remains open,Menu should close,Navigation,QA,TC-005
