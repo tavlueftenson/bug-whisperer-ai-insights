@@ -1,5 +1,6 @@
+
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import react from '@vitejs/plugin-react-swc';
 import { fileURLToPath } from 'url';
 
 export default defineConfig({
@@ -14,4 +15,7 @@ export default defineConfig({
       "@": fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    port: 8080
+  }
 });
