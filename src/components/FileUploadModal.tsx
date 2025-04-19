@@ -39,6 +39,7 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
 
   // Parse CSV row with proper handling of quoted fields
   const parseCSVRow = (row: string): string[] => {
+    // Enhanced CSV parsing for better handling of complex cases
     const result: string[] = [];
     let inQuotes = false;
     let currentValue = "";
@@ -93,59 +94,119 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
       let defects: DefectData[] = [];
       
       if (file.name.endsWith(".csv")) {
-        // CSV parsing logic
+        // CSV parsing logic - improved for better field detection
         const rows = text.split(/\r?\n/).filter(row => row.trim()); // Filter out empty lines
+        console.log("Total rows detected:", rows.length);
+        
+        if (rows.length === 0) {
+          throw new Error("CSV file appears to be empty");
+        }
+        
         const headerRow = rows[0];
         const headers = parseCSVRow(headerRow);
-        console.log("CSV Headers:", headers);
+        console.log("CSV Headers detected:", headers);
         
-        // Map headers to expected fields
-        const subjectIndex = headers.findIndex(h => 
-          h.toLowerCase().includes("subject") || h.toLowerCase().includes("title"));
-        const descIndex = headers.findIndex(h => 
-          h.toLowerCase().includes("description") || h.toLowerCase().includes("desc"));
-        const stepsIndex = headers.findIndex(h => 
-          h.toLowerCase().includes("steps") || h.toLowerCase().includes("reproduce"));
-        const actualIndex = headers.findIndex(h => 
-          h.toLowerCase().includes("actual") || h.toLowerCase().includes("result"));
-        const expectedIndex = headers.findIndex(h => 
-          h.toLowerCase().includes("expected"));
-        const featureIndex = headers.findIndex(h => 
-          h.toLowerCase().includes("feature") || h.toLowerCase().includes("module"));
-        const originIndex = headers.findIndex(h => 
-          h.toLowerCase().includes("origin") || h.toLowerCase().includes("environment"));
-        const testCaseIndex = headers.findIndex(h => 
-          h.toLowerCase().includes("test") || h.toLowerCase().includes("case"));
+        // More flexible header mapping with fallbacks
+        const findHeaderIndex = (possibleNames: string[]) => {
+          return headers.findIndex(h => 
+            possibleNames.some(name => h.toLowerCase().includes(name.toLowerCase()))
+          );
+        };
+        
+        // Map headers to expected fields with multiple possible matches
+        const subjectIndex = findHeaderIndex(['subject', 'title', 'summary', 'issue', 'bug']);
+        const descIndex = findHeaderIndex(['description', 'desc', 'details', 'summary']);
+        const stepsIndex = findHeaderIndex(['steps', 'reproduce', 'reproduction', 'how to']);
+        const actualIndex = findHeaderIndex(['actual', 'result', 'observed', 'outcome']);
+        const expectedIndex = findHeaderIndex(['expected', 'should', 'desired']);
+        const featureIndex = findHeaderIndex(['feature', 'module', 'component', 'area', 'func']);
+        const originIndex = findHeaderIndex(['origin', 'environment', 'env', 'found in', 'source']);
+        const testCaseIndex = findHeaderIndex(['test', 'case', 'tc', 'testcase']);
+        
+        console.log("Field mappings:", {
+          subject: subjectIndex,
+          description: descIndex,
+          steps: stepsIndex,
+          actual: actualIndex,
+          expected: expectedIndex,
+          feature: featureIndex,
+          origin: originIndex,
+          testCase: testCaseIndex
+        });
+        
+        // Check if we found at least the minimal required fields (subject)
+        if (subjectIndex === -1) {
+          console.warn("Could not find subject/title field in CSV headers");
+          throw new Error("Could not identify required fields in CSV headers. Please ensure your CSV includes at least a subject/title column.");
+        }
         
         // Process data rows only (skip header)
-        console.log("Total rows:", rows.length);
         const dataRows = rows.slice(1).filter(row => row.trim());
-        console.log("Data rows:", dataRows.length);
+        console.log("Data rows to process:", dataRows.length);
         
         // Process each row
         for (let i = 0; i < dataRows.length; i++) {
-          const cells = parseCSVRow(dataRows[i]);
-          
-          // Skip rows that don't have enough cells
-          if (cells.length < Math.max(
-            subjectIndex, descIndex, stepsIndex, actualIndex, 
-            expectedIndex, featureIndex, originIndex, testCaseIndex
-          ) + 1) {
-            console.warn(`Skipping row ${i+1} due to insufficient cells:`, cells);
-            continue;
+          try {
+            const cells = parseCSVRow(dataRows[i]);
+            console.log(`Row ${i+1} parsed cells:`, cells.length);
+            
+            // Skip rows that are clearly invalid
+            if (cells.length <= 1) {
+              console.warn(`Skipping row ${i+1} - insufficient data:`, cells);
+              continue;
+            }
+            
+            // Create defect with default values for missing fields
+            const defect: DefectData = {
+              id: `BUG-${i+1}`,
+              subject: "Unknown",
+              description: "",
+              stepsToReproduce: "",
+              actualResult: "",
+              expectedResult: "",
+              featureTag: "Untagged",
+              bugOrigin: "Unknown",
+              testCaseId: "N/A"
+            };
+            
+            // Only set fields that exist in the CSV
+            if (subjectIndex >= 0 && subjectIndex < cells.length) {
+              defect.subject = cells[subjectIndex]?.trim() || "Unknown";
+            }
+            
+            if (descIndex >= 0 && descIndex < cells.length) {
+              defect.description = cells[descIndex]?.trim() || "";
+            }
+            
+            if (stepsIndex >= 0 && stepsIndex < cells.length) {
+              defect.stepsToReproduce = cells[stepsIndex]?.trim() || "";
+            }
+            
+            if (actualIndex >= 0 && actualIndex < cells.length) {
+              defect.actualResult = cells[actualIndex]?.trim() || "";
+            }
+            
+            if (expectedIndex >= 0 && expectedIndex < cells.length) {
+              defect.expectedResult = cells[expectedIndex]?.trim() || "";
+            }
+            
+            if (featureIndex >= 0 && featureIndex < cells.length) {
+              defect.featureTag = cells[featureIndex]?.trim() || "Untagged";
+            }
+            
+            if (originIndex >= 0 && originIndex < cells.length) {
+              defect.bugOrigin = cells[originIndex]?.trim() || "Unknown";
+            }
+            
+            if (testCaseIndex >= 0 && testCaseIndex < cells.length) {
+              defect.testCaseId = cells[testCaseIndex]?.trim() || "N/A";
+            }
+            
+            defects.push(defect);
+          } catch (rowError) {
+            console.error(`Error processing row ${i+1}:`, rowError);
+            // Continue with next row instead of failing entire import
           }
-          
-          defects.push({
-            id: `BUG-${i+1}`,
-            subject: cells[subjectIndex]?.trim() || "Unknown",
-            description: cells[descIndex]?.trim() || "",
-            stepsToReproduce: cells[stepsIndex]?.trim() || "",
-            actualResult: cells[actualIndex]?.trim() || "",
-            expectedResult: cells[expectedIndex]?.trim() || "",
-            featureTag: cells[featureIndex]?.trim() || "Untagged",
-            bugOrigin: cells[originIndex]?.trim() || "Unknown",
-            testCaseId: cells[testCaseIndex]?.trim() || "N/A"
-          });
         }
       } else {
         // TXT parsing logic - assume structured format with labels
@@ -201,11 +262,11 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
         setOpen(false); // Close the modal after successful upload
       } else {
         setError("No defect data could be extracted from the file");
-        toast.error("No defect data could be extracted from the file");
+        toast.error("No defect data could be extracted from the file. Please check the format.");
       }
     } catch (err) {
       console.error("Error processing file:", err);
-      setError("Error processing file. Please ensure it follows the expected format.");
+      setError(`Error processing file: ${err instanceof Error ? err.message : 'Unknown error'}. Please ensure it follows the expected format.`);
       toast.error("Error processing file. Please ensure it follows the expected format.");
     } finally {
       setLoading(false);
