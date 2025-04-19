@@ -37,39 +37,47 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
     }
   };
 
-  // Parse CSV row with proper handling of quoted fields
+  // Improved CSV row parsing with better handling of quoted fields
   const parseCSVRow = (row: string): string[] => {
-    // Enhanced CSV parsing for better handling of complex cases
     const result: string[] = [];
     let inQuotes = false;
     let currentValue = "";
     
     for (let i = 0; i < row.length; i++) {
       const char = row[i];
+      const nextChar = i < row.length - 1 ? row[i + 1] : null;
       
-      if (char === '"' && (i === 0 || row[i-1] !== '\\')) {
+      // Handle escaped quotes (double quotes within quoted fields)
+      if (char === '"' && nextChar === '"') {
+        currentValue += '"';
+        i++; // Skip the next quote character
+        continue;
+      }
+      
+      // Toggle quote state (entering or leaving a quoted field)
+      if (char === '"') {
         inQuotes = !inQuotes;
-      } else if (char === ',' && !inQuotes) {
-        result.push(currentValue.trim());
+        continue;
+      }
+      
+      // If we hit a comma outside of quotes, end the current value
+      if (char === ',' && !inQuotes) {
+        result.push(currentValue);
         currentValue = "";
-      } else {
-        currentValue += char;
+        continue;
       }
+      
+      // For all other characters, add to the current value
+      currentValue += char;
     }
     
-    // Add the last value
-    if (currentValue) {
-      result.push(currentValue.trim());
+    // Add the last value if there is one
+    if (currentValue || result.length > 0) {
+      result.push(currentValue);
     }
     
-    // Clean up quotes from values
-    return result.map(value => {
-      if (value.startsWith('"') && value.endsWith('"')) {
-        return value.substring(1, value.length - 1);
-      }
-      return value;
-    });
-  }
+    return result.map(value => value.trim());
+  };
 
   // Function to extract value after a label
   const extractValueAfterLabel = (line: string): string => {
@@ -94,7 +102,7 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
       let defects: DefectData[] = [];
       
       if (file.name.endsWith(".csv")) {
-        // CSV parsing logic - improved for better field detection
+        // CSV parsing logic with improved quoted field handling
         const rows = text.split(/\r?\n/).filter(row => row.trim()); // Filter out empty lines
         console.log("Total rows detected:", rows.length);
         
@@ -144,21 +152,34 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
         const dataRows = rows.slice(1).filter(row => row.trim());
         console.log("Data rows to process:", dataRows.length);
         
+        // Create a set to track IDs to avoid duplicates
+        const processedIds = new Set<string>();
+        
         // Process each row
         for (let i = 0; i < dataRows.length; i++) {
           try {
+            // Skip rows that are clearly just whitespace
+            if (!dataRows[i].trim()) continue;
+            
             const cells = parseCSVRow(dataRows[i]);
             console.log(`Row ${i+1} parsed cells:`, cells.length);
             
-            // Skip rows that are clearly invalid
-            if (cells.length <= 1) {
-              console.warn(`Skipping row ${i+1} - insufficient data:`, cells);
+            // Skip rows with insufficient cells
+            if (cells.length <= 1 || (subjectIndex >= 0 && cells[subjectIndex]?.trim() === "")) {
+              console.warn(`Skipping row ${i+1} - insufficient data`);
               continue;
             }
             
+            // Generate a unique ID for the defect
+            let defectId = `BUG-${i+1}`;
+            while (processedIds.has(defectId)) {
+              defectId = `BUG-${i+1}-${Math.random().toString(36).substring(2, 5)}`;
+            }
+            processedIds.add(defectId);
+            
             // Create defect with default values for missing fields
             const defect: DefectData = {
-              id: `BUG-${i+1}`,
+              id: defectId,
               subject: "Unknown",
               description: "",
               stepsToReproduce: "",
@@ -170,35 +191,35 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
             };
             
             // Only set fields that exist in the CSV
-            if (subjectIndex >= 0 && subjectIndex < cells.length) {
+            if (subjectIndex >= 0 && subjectIndex < cells.length && cells[subjectIndex]) {
               defect.subject = cells[subjectIndex]?.trim() || "Unknown";
             }
             
-            if (descIndex >= 0 && descIndex < cells.length) {
+            if (descIndex >= 0 && descIndex < cells.length && cells[descIndex]) {
               defect.description = cells[descIndex]?.trim() || "";
             }
             
-            if (stepsIndex >= 0 && stepsIndex < cells.length) {
+            if (stepsIndex >= 0 && stepsIndex < cells.length && cells[stepsIndex]) {
               defect.stepsToReproduce = cells[stepsIndex]?.trim() || "";
             }
             
-            if (actualIndex >= 0 && actualIndex < cells.length) {
+            if (actualIndex >= 0 && actualIndex < cells.length && cells[actualIndex]) {
               defect.actualResult = cells[actualIndex]?.trim() || "";
             }
             
-            if (expectedIndex >= 0 && expectedIndex < cells.length) {
+            if (expectedIndex >= 0 && expectedIndex < cells.length && cells[expectedIndex]) {
               defect.expectedResult = cells[expectedIndex]?.trim() || "";
             }
             
-            if (featureIndex >= 0 && featureIndex < cells.length) {
+            if (featureIndex >= 0 && featureIndex < cells.length && cells[featureIndex]) {
               defect.featureTag = cells[featureIndex]?.trim() || "Untagged";
             }
             
-            if (originIndex >= 0 && originIndex < cells.length) {
+            if (originIndex >= 0 && originIndex < cells.length && cells[originIndex]) {
               defect.bugOrigin = cells[originIndex]?.trim() || "Unknown";
             }
             
-            if (testCaseIndex >= 0 && testCaseIndex < cells.length) {
+            if (testCaseIndex >= 0 && testCaseIndex < cells.length && cells[testCaseIndex]) {
               defect.testCaseId = cells[testCaseIndex]?.trim() || "N/A";
             }
             

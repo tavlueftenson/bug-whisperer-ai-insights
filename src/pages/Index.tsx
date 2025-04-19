@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,27 +18,38 @@ const parseCSVRow = (row: string): string[] => {
   
   for (let i = 0; i < row.length; i++) {
     const char = row[i];
+    const nextChar = i < row.length - 1 ? row[i + 1] : null;
     
-    if (char === '"' && (i === 0 || row[i-1] !== '\\')) {
+    // Handle escaped quotes (double quotes within quoted fields)
+    if (char === '"' && nextChar === '"') {
+      currentValue += '"';
+      i++; // Skip the next quote character
+      continue;
+    }
+    
+    // Toggle quote state (entering or leaving a quoted field)
+    if (char === '"') {
       inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      result.push(currentValue.trim());
+      continue;
+    }
+    
+    // If we hit a comma outside of quotes, end the current value
+    if (char === ',' && !inQuotes) {
+      result.push(currentValue);
       currentValue = "";
-    } else {
-      currentValue += char;
+      continue;
     }
+    
+    // For all other characters, add to the current value
+    currentValue += char;
   }
   
-  if (currentValue) {
-    result.push(currentValue.trim());
+  // Add the last value if there is one
+  if (currentValue || result.length > 0) {
+    result.push(currentValue);
   }
   
-  return result.map(value => {
-    if (value.startsWith('"') && value.endsWith('"')) {
-      return value.substring(1, value.length - 1);
-    }
-    return value;
-  });
+  return result.map(value => value.trim());
 };
 
 const Index = () => {
