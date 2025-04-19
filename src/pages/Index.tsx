@@ -11,26 +11,51 @@ import { AIAnalysisService } from "@/services/aiAnalysisService";
 import { sampleDefects } from "@/data/sampleDefects";
 import { toast } from "sonner";
 
+const parseCSVRow = (row: string): string[] => {
+  const result: string[] = [];
+  let inQuotes = false;
+  let currentValue = "";
+  
+  for (let i = 0; i < row.length; i++) {
+    const char = row[i];
+    
+    if (char === '"' && (i === 0 || row[i-1] !== '\\')) {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(currentValue.trim());
+      currentValue = "";
+    } else {
+      currentValue += char;
+    }
+  }
+  
+  if (currentValue) {
+    result.push(currentValue.trim());
+  }
+  
+  return result.map(value => {
+    if (value.startsWith('"') && value.endsWith('"')) {
+      return value.substring(1, value.length - 1);
+    }
+    return value;
+  });
+};
+
 const Index = () => {
-  // State for tracking application state
   const [defects, setDefects] = useState<DefectData[]>([]);
   const [analysis, setAnalysis] = useState<AnalysisResults | null>(null);
   const [analyzing, setAnalyzing] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>("upload");
   
-  // Handler for when a file is uploaded and processed
   const handleFileUploaded = (parsedDefects: DefectData[]) => {
     setDefects(parsedDefects);
-    // Auto-switch to defects tab after upload
     setActiveTab("defects");
   };
   
-  // Handler for starting analysis
   const handleAnalysisStart = () => {
     setAnalyzing(true);
     setActiveTab("analysis");
     
-    // Run AI analysis on the defect data
     AIAnalysisService.analyzeDefects(defects)
       .then((results) => {
         setAnalysis(results);
@@ -43,10 +68,8 @@ const Index = () => {
       });
   };
   
-  // Load sample data for demo purposes
   const loadSampleData = async () => {
     try {
-      // Use an absolute path with import.meta.env.BASE_URL to ensure it works with GitHub Pages
       const baseUrl = import.meta.env.BASE_URL || '/';
       console.log("Loading sample data from:", `${baseUrl}sample-defects.csv`);
       
@@ -60,11 +83,10 @@ const Index = () => {
       const csvText = await response.text();
       console.log("CSV data loaded, length:", csvText.length);
       
-      // Parse CSV data using similar logic from FileUpload component
-      const rows = csvText.split("\n");
-      const headers = rows[0].split(",");
+      const rows = csvText.split(/\r?\n/);
+      const headerRow = rows[0];
+      const headers = parseCSVRow(headerRow);
       
-      // Map headers to expected fields
       const subjectIndex = headers.findIndex(h => 
         h.toLowerCase().includes("subject") || h.toLowerCase().includes("title"));
       const descIndex = headers.findIndex(h => 
@@ -82,12 +104,11 @@ const Index = () => {
       const testCaseIndex = headers.findIndex(h => 
         h.toLowerCase().includes("test") || h.toLowerCase().includes("case"));
       
-      // Process each row
       const parsedDefects: DefectData[] = [];
       for (let i = 1; i < rows.length; i++) {
         if (!rows[i].trim()) continue;
         
-        const cells = rows[i].split(",");
+        const cells = parseCSVRow(rows[i]);
         
         parsedDefects.push({
           id: `BUG-${i}`,
@@ -150,7 +171,6 @@ const Index = () => {
           </TabsTrigger>
         </TabsList>
         
-        {/* Upload Tab */}
         <TabsContent value="upload" className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
             <div>
@@ -218,7 +238,6 @@ const Index = () => {
           </div>
         </TabsContent>
         
-        {/* Defects Tab */}
         <TabsContent value="defects" className="space-y-6">
           <Card>
             <CardHeader>
@@ -243,7 +262,6 @@ const Index = () => {
           </Card>
         </TabsContent>
         
-        {/* Analysis Tab */}
         <TabsContent value="analysis" className="space-y-6">
           {analyzing ? (
             <AnalysisLoader />

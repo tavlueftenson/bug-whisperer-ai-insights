@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,39 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     }
   };
 
+  // Parse CSV row with proper handling of quoted fields
+  const parseCSVRow = (row: string): string[] => {
+    const result: string[] = [];
+    let inQuotes = false;
+    let currentValue = "";
+    
+    for (let i = 0; i < row.length; i++) {
+      const char = row[i];
+      
+      if (char === '"' && (i === 0 || row[i-1] !== '\\')) {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(currentValue.trim());
+        currentValue = "";
+      } else {
+        currentValue += char;
+      }
+    }
+    
+    // Add the last value
+    if (currentValue) {
+      result.push(currentValue.trim());
+    }
+    
+    // Clean up quotes from values
+    return result.map(value => {
+      if (value.startsWith('"') && value.endsWith('"')) {
+        return value.substring(1, value.length - 1);
+      }
+      return value;
+    });
+  }
+
   // Function to process the uploaded file
   const processFile = useCallback(async () => {
     if (!file) return;
@@ -65,8 +99,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       
       if (file.name.endsWith(".csv")) {
         // CSV parsing logic
-        const rows = text.split("\n");
-        const headers = rows[0].split(",");
+        const rows = text.split(/\r?\n/); // Handle both CRLF and LF line endings
+        const headerRow = rows[0];
+        const headers = parseCSVRow(headerRow);
         
         // Map headers to expected fields
         const subjectIndex = headers.findIndex(h => 
@@ -90,7 +125,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         for (let i = 1; i < rows.length; i++) {
           if (!rows[i].trim()) continue;
           
-          const cells = rows[i].split(",");
+          const cells = parseCSVRow(rows[i]);
           
           defects.push({
             id: `BUG-${i}`,
