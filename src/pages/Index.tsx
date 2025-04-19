@@ -46,7 +46,8 @@ const Index = () => {
   const [analysis, setAnalysis] = useState<AnalysisResults | null>(null);
   const [analyzing, setAnalyzing] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>("upload");
-  
+  const [lastUpdated] = useState(new Date(import.meta.env.VITE_BUILD_TIMESTAMP || Date.now()));
+
   const handleFileUploaded = (parsedDefects: DefectData[]) => {
     setDefects(parsedDefects);
     setActiveTab("defects");
@@ -286,6 +287,9 @@ const Index = () => {
       
       <footer className="mt-16 text-center text-sm text-muted-foreground">
         <p>Bug Whisperer AI © {new Date().getFullYear()} - Defect Analysis with AI Insights</p>
+        <p className="text-xs text-muted-foreground mt-2">
+          Last Updated: {lastUpdated.toLocaleString()}
+        </p>
       </footer>
     </div>
   );
