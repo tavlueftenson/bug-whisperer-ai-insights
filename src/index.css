@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -109,9 +110,26 @@
   }
 }
 
-/* Hide the Lovable badge */
-.lovable-badge {
+/* Hide the Lovable badge with multiple possible selectors */
+.lovable-badge,
+#lovable-badge,
+[data-lovable-badge],
+[class*="lovable-badge"],
+[id*="lovable-badge"],
+[class*="lovable"],
+a[href*="lovable.app"],
+a[href*="lovable.dev"],
+iframe[src*="lovable"],
+div[class*="badge"],
+.badge-container,
+#badge-container {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  position: absolute !important;
+  pointer-events: none !important;
+  clip: rect(0, 0, 0, 0) !important;
 }
+
