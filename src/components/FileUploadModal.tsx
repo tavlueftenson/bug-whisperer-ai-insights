@@ -38,44 +38,54 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
   };
 
   // Improved CSV row parsing with better handling of quoted fields
+  // Specifically optimized for Python-generated CSV with quote_all=True
   const parseCSVRow = (row: string): string[] => {
+    if (!row.trim()) return [];
+    
+    // Handle case where entire row might be empty or just whitespace
+    if (row.trim() === '') return [];
+    
     const result: string[] = [];
     let inQuotes = false;
-    let currentValue = "";
+    let currentValue = '';
+    let i = 0;
     
-    for (let i = 0; i < row.length; i++) {
+    while (i < row.length) {
       const char = row[i];
-      const nextChar = i < row.length - 1 ? row[i + 1] : null;
       
-      // Handle escaped quotes (double quotes within quoted fields)
-      if (char === '"' && nextChar === '"') {
-        currentValue += '"';
-        i++; // Skip the next quote character
-        continue;
-      }
-      
-      // Toggle quote state (entering or leaving a quoted field)
+      // Handle quotes
       if (char === '"') {
+        // Check if this is an escaped quote (double quote) inside a quoted field
+        if (i + 1 < row.length && row[i + 1] === '"' && inQuotes) {
+          currentValue += '"'; // Add a single quote to the value
+          i += 2; // Skip both quotes
+          continue;
+        }
+        
+        // Toggle quote state
         inQuotes = !inQuotes;
+        i++; // Move to next character
         continue;
       }
       
-      // If we hit a comma outside of quotes, end the current value
+      // Handle field separators (commas)
       if (char === ',' && !inQuotes) {
+        // End of field reached
         result.push(currentValue);
-        currentValue = "";
+        currentValue = '';
+        i++;
         continue;
       }
       
-      // For all other characters, add to the current value
+      // For all other characters, add to current value
       currentValue += char;
+      i++;
     }
     
-    // Add the last value if there is one
-    if (currentValue || result.length > 0) {
-      result.push(currentValue);
-    }
+    // Add the last field
+    result.push(currentValue);
     
+    // Trim whitespace from all fields
     return result.map(value => value.trim());
   };
 
