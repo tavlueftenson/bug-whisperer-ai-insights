@@ -94,9 +94,10 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
       
       if (file.name.endsWith(".csv")) {
         // CSV parsing logic
-        const rows = text.split(/\r?\n/); // Handle both CRLF and LF line endings
+        const rows = text.split(/\r?\n/).filter(row => row.trim()); // Filter out empty lines
         const headerRow = rows[0];
         const headers = parseCSVRow(headerRow);
+        console.log("CSV Headers:", headers);
         
         // Map headers to expected fields
         const subjectIndex = headers.findIndex(h => 
@@ -116,14 +117,26 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
         const testCaseIndex = headers.findIndex(h => 
           h.toLowerCase().includes("test") || h.toLowerCase().includes("case"));
         
+        // Process data rows only (skip header)
+        console.log("Total rows:", rows.length);
+        const dataRows = rows.slice(1).filter(row => row.trim());
+        console.log("Data rows:", dataRows.length);
+        
         // Process each row
-        for (let i = 1; i < rows.length; i++) {
-          if (!rows[i].trim()) continue;
+        for (let i = 0; i < dataRows.length; i++) {
+          const cells = parseCSVRow(dataRows[i]);
           
-          const cells = parseCSVRow(rows[i]);
+          // Skip rows that don't have enough cells
+          if (cells.length < Math.max(
+            subjectIndex, descIndex, stepsIndex, actualIndex, 
+            expectedIndex, featureIndex, originIndex, testCaseIndex
+          ) + 1) {
+            console.warn(`Skipping row ${i+1} due to insufficient cells:`, cells);
+            continue;
+          }
           
           defects.push({
-            id: `BUG-${i}`,
+            id: `BUG-${i+1}`,
             subject: cells[subjectIndex]?.trim() || "Unknown",
             description: cells[descIndex]?.trim() || "",
             stepsToReproduce: cells[stepsIndex]?.trim() || "",

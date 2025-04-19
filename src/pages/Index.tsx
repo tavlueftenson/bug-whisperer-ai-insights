@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -84,7 +85,7 @@ const Index = () => {
       const csvText = await response.text();
       console.log("CSV data loaded, length:", csvText.length);
       
-      const rows = csvText.split(/\r?\n/);
+      const rows = csvText.split(/\r?\n/).filter(row => row.trim()); // Filter out empty lines
       const headerRow = rows[0];
       const headers = parseCSVRow(headerRow);
       
@@ -106,13 +107,24 @@ const Index = () => {
         h.toLowerCase().includes("test") || h.toLowerCase().includes("case"));
       
       const parsedDefects: DefectData[] = [];
-      for (let i = 1; i < rows.length; i++) {
-        if (!rows[i].trim()) continue;
+      // Skip header row
+      const dataRows = rows.slice(1).filter(row => row.trim());
+      console.log("Sample data rows:", dataRows.length);
+      
+      for (let i = 0; i < dataRows.length; i++) {
+        const cells = parseCSVRow(dataRows[i]);
         
-        const cells = parseCSVRow(rows[i]);
+        // Skip rows that don't have enough cells
+        if (cells.length < Math.max(
+          subjectIndex, descIndex, stepsIndex, actualIndex, 
+          expectedIndex, featureIndex, originIndex, testCaseIndex
+        ) + 1) {
+          console.warn(`Skipping row ${i+1} due to insufficient cells:`, cells);
+          continue;
+        }
         
         parsedDefects.push({
-          id: `BUG-${i}`,
+          id: `BUG-${i+1}`,
           subject: cells[subjectIndex]?.trim() || "Unknown",
           description: cells[descIndex]?.trim() || "",
           stepsToReproduce: cells[stepsIndex]?.trim() || "",
