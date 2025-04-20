@@ -1,21 +1,304 @@
 
 import { DefectData } from "@/components/FileUpload";
 import { AnalysisResults } from "@/components/DefectAnalytics";
+import { toast } from "sonner";
 
 /**
  * AIAnalysisService
  * 
  * This service provides AI-powered analysis of defect logs.
- * In a real application, this would connect to an external AI service.
- * For demo purposes, we are implementing a simulated analysis using pattern matching.
+ * It connects to OpenAI's API to analyze defects and generate insights.
  */
 export class AIAnalysisService {
   /**
-   * Analyzes defect data and generates insights
+   * The API key for authenticating with the AI service
+   * In a production app, this would be stored in environment variables or a secure backend
+   */
+  private static apiKey = '';
+
+  /**
+   * Checks if the API key has been set
+   */
+  private static hasApiKey(): boolean {
+    return !!this.apiKey && this.apiKey.length > 0;
+  }
+
+  /**
+   * Sets the OpenAI API key
+   */
+  public static setApiKey(key: string): void {
+    this.apiKey = key;
+  }
+
+  /**
+   * Analyzes defect data and generates insights using AI
    * @param defects Array of defect data to analyze
    * @returns Analysis results including metrics and recommendations
    */
   public static async analyzeDefects(defects: DefectData[]): Promise<AnalysisResults> {
+    // Check if API key is provided
+    if (!this.hasApiKey()) {
+      // If no API key, fall back to the simulation method
+      console.warn("No OpenAI API key provided. Using simulated analysis.");
+      return this.simulateAnalysis(defects);
+    }
+    
+    try {
+      // Prepare the defect data for analysis
+      // We need to create a concise summary for the AI to process
+      const defectSummary = this.prepareDefectsForAI(defects);
+      
+      // Send the data to OpenAI API
+      const analysisResults = await this.sendToOpenAI(defectSummary);
+      
+      return analysisResults;
+    } catch (error) {
+      console.error("Error during AI analysis:", error);
+      toast.error("AI analysis failed. Falling back to simulation.");
+      
+      // Fall back to simulation if the AI analysis fails
+      return this.simulateAnalysis(defects);
+    }
+  }
+  
+  /**
+   * Prepares the defect data in a format suitable for the AI model
+   */
+  private static prepareDefectsForAI(defects: DefectData[]): string {
+    // Create a summary of the defects for the AI to analyze
+    let summary = `Analyze the following ${defects.length} software defects and provide insights:\n\n`;
+    
+    // Add a sample of defects (limit to avoid token limits)
+    const sampleSize = Math.min(defects.length, 20);
+    const sampledDefects = defects.slice(0, sampleSize);
+    
+    // Add feature distribution summary
+    const featureDistribution = this.generateFeatureDistribution(defects);
+    summary += "Feature Distribution:\n";
+    featureDistribution.forEach(item => {
+      summary += `- ${item.name}: ${item.value} defects\n`;
+    });
+    summary += "\n";
+    
+    // Add origin distribution summary
+    const originDistribution = this.generateOriginDistribution(defects);
+    summary += "Origin Distribution:\n";
+    originDistribution.forEach(item => {
+      summary += `- ${item.name}: ${item.value} defects\n`;
+    });
+    summary += "\n";
+    
+    // Add sample defects
+    summary += "Sample Defects:\n";
+    sampledDefects.forEach((defect, index) => {
+      summary += `\nDefect ${index + 1}: ${defect.subject}\n`;
+      summary += `Description: ${defect.description.substring(0, 200)}${defect.description.length > 200 ? '...' : ''}\n`;
+      summary += `Steps: ${defect.stepsToReproduce.substring(0, 100)}${defect.stepsToReproduce.length > 100 ? '...' : ''}\n`;
+      summary += `Feature: ${defect.featureTag}, Origin: ${defect.bugOrigin}\n`;
+    });
+    
+    summary += "\n\nBased on these defects, provide the following analysis in JSON format:";
+    summary += "\n1. Root causes (name and count)";
+    summary += "\n2. Rework rate (percentage)";
+    summary += "\n3. Bug bounce rate (percentage)";
+    summary += "\n4. Bad fix rate (percentage)";
+    summary += "\n5. Recommendations for process improvements, test coverage, and training";
+
+    return summary;
+  }
+  
+  /**
+   * Sends the defect summary to OpenAI API and processes the response
+   */
+  private static async sendToOpenAI(defectSummary: string): Promise<AnalysisResults> {
+    try {
+      // Make request to OpenAI API
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert software quality analyst. Analyze defect data and provide insights in JSON format with the exact structure shown in the user prompt.'
+            },
+            {
+              role: 'user',
+              content: defectSummary
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 2000
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`OpenAI API error: ${error}`);
+      }
+      
+      const result = await response.json();
+      const aiResponse = result.choices[0].message.content;
+      
+      // Extract JSON object from response
+      // The response might contain markdown or explanation text, so we need to extract just the JSON
+      const jsonMatch = aiResponse.match(/```json\s*([\s\S]*?)\s*```/) || 
+                        aiResponse.match(/\{[\s\S]*\}/);
+                        
+      let analysisJson: any;
+      
+      if (jsonMatch) {
+        try {
+          analysisJson = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+        } catch (e) {
+          throw new Error("Failed to parse AI response as JSON");
+        }
+      } else {
+        throw new Error("AI response did not contain valid JSON");
+      }
+      
+      // Map the AI's response to our expected format
+      const analysisResults: AnalysisResults = this.mapAIResponseToAnalysisResults(analysisJson);
+      
+      return analysisResults;
+    } catch (error) {
+      console.error("Error calling OpenAI:", error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Maps the AI's JSON response to our AnalysisResults format
+   */
+  private static mapAIResponseToAnalysisResults(aiResponse: any): AnalysisResults {
+    // Create a structured analysis result from the AI response
+    // Handle cases where the AI might not return exactly the expected format
+    
+    const rootCauses = Array.isArray(aiResponse.rootCauses) 
+      ? aiResponse.rootCauses.map((cause: any) => ({
+          name: cause.name || cause.category || "Unknown",
+          value: cause.count || cause.value || 1
+        }))
+      : this.convertObjectToNameValueArray(aiResponse.rootCauses || {});
+    
+    // Parse numeric values, with fallbacks
+    const reworkRate = this.parsePercentage(aiResponse.reworkRate, 24);
+    const bugBounceRate = this.parsePercentage(aiResponse.bugBounceRate, 18);
+    const badFixRate = this.parsePercentage(aiResponse.badFixRate, 12);
+    
+    // Handle feature and origin distribution if provided by AI
+    const featureDistribution = aiResponse.featureDistribution || [];
+    const originDistribution = aiResponse.originDistribution || [];
+    
+    // Handle recommendations
+    const processRecs = this.extractRecommendations(aiResponse, 'process');
+    const testRecs = this.extractRecommendations(aiResponse, 'testCoverage');
+    const trainingRecs = this.extractRecommendations(aiResponse, 'training');
+    
+    return {
+      rootCauses,
+      reworkRate,
+      bugBounceRate,
+      badFixRate,
+      featureDistribution: featureDistribution.length > 0 ? featureDistribution : this.generateFeatureDistribution([]),
+      originDistribution: originDistribution.length > 0 ? originDistribution : this.generateOriginDistribution([]),
+      recommendations: {
+        process: processRecs,
+        testCoverage: testRecs,
+        training: trainingRecs
+      }
+    };
+  }
+  
+  /**
+   * Extracts recommendation arrays from AI response
+   */
+  private static extractRecommendations(aiResponse: any, type: string): string[] {
+    const defaultRecs = [
+      `Implement standard ${type} improvements`,
+      `Review current ${type} practices`,
+      `Establish ${type} metrics and tracking`
+    ];
+    
+    if (!aiResponse.recommendations) return defaultRecs;
+    
+    const recs = aiResponse.recommendations[type];
+    if (Array.isArray(recs) && recs.length > 0) {
+      return recs.slice(0, 5);
+    }
+    
+    return defaultRecs;
+  }
+  
+  /**
+   * Parses a percentage value from the AI response
+   */
+  private static parsePercentage(value: any, defaultValue: number): number {
+    if (typeof value === 'number') {
+      return Math.min(Math.max(Math.round(value), 0), 100);
+    }
+    
+    if (typeof value === 'string') {
+      const match = value.match(/(\d+)(\.\d+)?%?/);
+      if (match) {
+        return Math.min(Math.max(Math.round(parseFloat(match[0])), 0), 100);
+      }
+    }
+    
+    return defaultValue;
+  }
+  
+  /**
+   * Converts an object to a name/value array format
+   */
+  private static convertObjectToNameValueArray(obj: Record<string, number>): Array<{name: string, value: number}> {
+    return Object.entries(obj).map(([name, value]) => ({ name, value }));
+  }
+  
+  /**
+   * Generates feature distribution data for visualization
+   * Used as fallback if AI doesn't provide this data
+   */
+  private static generateFeatureDistribution(defects: DefectData[]) {
+    const featureCounts: Record<string, number> = {};
+    
+    defects.forEach(defect => {
+      const feature = defect.featureTag || 'Untagged';
+      featureCounts[feature] = (featureCounts[feature] || 0) + 1;
+    });
+    
+    // Format for chart display
+    return Object.entries(featureCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }
+  
+  /**
+   * Generates origin/environment distribution data for visualization
+   * Used as fallback if AI doesn't provide this data
+   */
+  private static generateOriginDistribution(defects: DefectData[]) {
+    const originCounts: Record<string, number> = {};
+    
+    defects.forEach(defect => {
+      const origin = defect.bugOrigin || 'Unknown';
+      originCounts[origin] = (originCounts[origin] || 0) + 1;
+    });
+    
+    // Format for chart display
+    return Object.entries(originCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }
+  
+  /**
+   * Legacy simulation method for generating analysis when no API key is available
+   */
+  private static async simulateAnalysis(defects: DefectData[]): Promise<AnalysisResults> {
     // Simulate AI processing delay
     await new Promise(resolve => setTimeout(resolve, 1500));
     
@@ -334,3 +617,13 @@ export class AIAnalysisService {
     };
   }
 }
+
+// Define causeKeywords for the identifyRootCauses method
+const causeKeywords = {
+  'Input Validation': ['validation', 'input', 'invalid', 'format', 'required field'],
+  'Error Handling': ['exception', 'error', 'crash', 'handled', 'timeout'],
+  'UI/UX Issues': ['ui', 'display', 'interface', 'button', 'layout', 'alignment'],
+  'Performance': ['slow', 'performance', 'lag', 'loading', 'timeout'],
+  'Data Processing': ['data', 'calculation', 'processing', 'incorrect value'],
+  'Integration': ['integration', 'api', 'service', 'endpoint', 'connection']
+};

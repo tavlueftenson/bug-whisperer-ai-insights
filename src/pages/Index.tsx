@@ -11,6 +11,7 @@ import { AIAnalysisService } from "@/services/aiAnalysisService";
 import { sampleDefects } from "@/data/sampleDefects";
 import { toast } from "sonner";
 import { parseCSV, extractDefectHeaderMappings } from "@/utils/csvParser";
+import ApiKeyModal from "@/components/ApiKeyModal";
 
 const Index = () => {
   const [defects, setDefects] = useState<DefectData[]>([]);
@@ -18,6 +19,7 @@ const Index = () => {
   const [analyzing, setAnalyzing] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>("upload");
   const [lastUpdated] = useState(new Date(import.meta.env.VITE_BUILD_TIMESTAMP || Date.now()));
+  const [apiKeySet, setApiKeySet] = useState<boolean>(false);
 
   const handleFileUploaded = (parsedDefects: DefectData[]) => {
     setDefects(parsedDefects);
@@ -111,6 +113,18 @@ const Index = () => {
     }
   };
   
+  useEffect(() => {
+    const storedKey = localStorage.getItem('openai_api_key');
+    if (storedKey) {
+      AIAnalysisService.setApiKey(storedKey);
+      setApiKeySet(true);
+    }
+  }, []);
+  
+  const handleApiKeySet = () => {
+    setApiKeySet(true);
+  };
+  
   return (
     <div className="container mx-auto py-8 px-4 max-w-7xl">
       <header className="mb-8 text-center">
@@ -121,6 +135,9 @@ const Index = () => {
         <p className="text-lg text-muted-foreground">
           Analyze defect logs for actionable insights and improvement recommendations
         </p>
+        <div className="mt-4">
+          <ApiKeyModal onApiKeySet={handleApiKeySet} />
+        </div>
       </header>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
