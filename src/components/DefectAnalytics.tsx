@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { DefectData } from "./FileUpload";
-import { ChartContainer } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 interface DefectAnalyticsProps {
@@ -37,6 +36,22 @@ const CHART_COLORS = [
 ];
 
 export const DefectAnalytics: React.FC<DefectAnalyticsProps> = ({ defects, analysis }) => {
+  // Debug logs to verify data
+  console.log("DefectAnalytics received analysis:", analysis);
+  console.log("Root Causes:", analysis.rootCauses);
+  console.log("Feature Distribution:", analysis.featureDistribution);
+  console.log("Origin Distribution:", analysis.originDistribution);
+
+  // Ensure data exists and has proper format before rendering
+  const hasRootCauses = Array.isArray(analysis.rootCauses) && analysis.rootCauses.length > 0;
+  const hasFeatureDistribution = Array.isArray(analysis.featureDistribution) && analysis.featureDistribution.length > 0;
+  const hasOriginDistribution = Array.isArray(analysis.originDistribution) && analysis.originDistribution.length > 0;
+
+  // Create fallback data if needed
+  const rootCausesData = hasRootCauses ? analysis.rootCauses : [{ name: "No data available", value: 0 }];
+  const featureDistributionData = hasFeatureDistribution ? analysis.featureDistribution : [{ name: "No data available", value: 1 }];
+  const originDistributionData = hasOriginDistribution ? analysis.originDistribution : [{ name: "No data available", value: 1 }];
+
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {/* Metrics Cards */}
@@ -87,68 +102,86 @@ export const DefectAnalytics: React.FC<DefectAnalyticsProps> = ({ defects, analy
             {/* Root Causes Chart */}
             <TabsContent value="root-causes">
               <div className="h-[300px] mt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={analysis.rootCauses}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="value" name="Count" fill="hsl(var(--chart-purple))" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {hasRootCauses ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={rootCausesData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="value" name="Count" fill="hsl(var(--chart-purple))" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-full items-center justify-center text-muted-foreground">
+                    No root cause data available
+                  </div>
+                )}
               </div>
             </TabsContent>
             
             {/* Feature Distribution Chart */}
             <TabsContent value="feature-dist">
               <div className="h-[300px] mt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={analysis.featureDistribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={true}
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                      nameKey="name"
-                      label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {analysis.featureDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+                {hasFeatureDistribution ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={featureDistributionData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={true}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
+                        nameKey="name"
+                        label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {featureDistributionData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-full items-center justify-center text-muted-foreground">
+                    No feature distribution data available
+                  </div>
+                )}
               </div>
             </TabsContent>
             
             {/* Origin Distribution Chart */}
             <TabsContent value="origin-dist">
               <div className="h-[300px] mt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={analysis.originDistribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={true}
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                      nameKey="name"
-                      label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {analysis.originDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+                {hasOriginDistribution ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={originDistributionData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={true}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
+                        nameKey="name"
+                        label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {originDistributionData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-full items-center justify-center text-muted-foreground">
+                    No origin distribution data available
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
