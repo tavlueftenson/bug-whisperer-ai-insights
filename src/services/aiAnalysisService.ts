@@ -1,4 +1,3 @@
-
 import { DefectData } from "@/components/FileUpload";
 import { AnalysisResults } from "@/components/DefectAnalytics";
 import { toast } from "sonner";
@@ -32,20 +31,16 @@ export class AIAnalysisService {
 
   /**
    * Analyzes defect data and generates insights using AI
-   * @param defects Array of defect data to analyze
-   * @returns Analysis results including metrics and recommendations
    */
   public static async analyzeDefects(defects: DefectData[]): Promise<AnalysisResults> {
     // Check if API key is provided
     if (!this.hasApiKey()) {
-      // If no API key, fall back to the simulation method
-      console.warn("No OpenAI API key provided. Using simulated analysis.");
-      return this.simulateAnalysis(defects);
+      toast.error("OpenAI API key is required for AI analysis");
+      throw new Error("No OpenAI API key provided");
     }
     
     try {
       // Prepare the defect data for analysis
-      // We need to create a concise summary for the AI to process
       const defectSummary = this.prepareDefectsForAI(defects);
       
       // Send the data to OpenAI API
@@ -54,13 +49,37 @@ export class AIAnalysisService {
       return analysisResults;
     } catch (error) {
       console.error("Error during AI analysis:", error);
-      toast.error("AI analysis failed. Falling back to simulation.");
       
-      // Fall back to simulation if the AI analysis fails
-      return this.simulateAnalysis(defects);
+      // Provide more specific error messages
+      if (error instanceof Response) {
+        const status = error.status;
+        if (status === 401) {
+          toast.error("Invalid OpenAI API key. Please check your API key and try again.");
+          throw new Error("Invalid API key");
+        } else if (status === 429) {
+          toast.error("OpenAI API rate limit exceeded. Please try again later.");
+          throw new Error("Rate limit exceeded");
+        } else if (status >= 500) {
+          toast.error("OpenAI service is currently unavailable. Please try again later.");
+          throw new Error("Service unavailable");
+        }
+      }
+
+      // Handle network or other errors
+      if (error instanceof Error) {
+        if (error.message.includes("Failed to fetch")) {
+          toast.error("Network error. Please check your internet connection.");
+          throw new Error("Network error");
+        }
+        toast.error(`AI analysis failed: ${error.message}`);
+        throw error;
+      }
+      
+      toast.error("An unexpected error occurred during AI analysis");
+      throw new Error("Unexpected error during analysis");
     }
   }
-  
+
   /**
    * Prepares the defect data in a format suitable for the AI model
    */
@@ -137,40 +156,37 @@ export class AIAnalysisService {
       });
       
       if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`OpenAI API error: ${error}`);
+        throw response;
       }
       
       const result = await response.json();
+      
+      if (!result.choices?.[0]?.message?.content) {
+        throw new Error("Invalid response format from OpenAI");
+      }
+      
       const aiResponse = result.choices[0].message.content;
       
       // Extract JSON object from response
-      // The response might contain markdown or explanation text, so we need to extract just the JSON
       const jsonMatch = aiResponse.match(/```json\s*([\s\S]*?)\s*```/) || 
-                        aiResponse.match(/\{[\s\S]*\}/);
-                        
-      let analysisJson: any;
-      
-      if (jsonMatch) {
-        try {
-          analysisJson = JSON.parse(jsonMatch[1] || jsonMatch[0]);
-        } catch (e) {
-          throw new Error("Failed to parse AI response as JSON");
-        }
-      } else {
-        throw new Error("AI response did not contain valid JSON");
+                      aiResponse.match(/\{[\s\S]*\}/);
+                      
+      if (!jsonMatch) {
+        throw new Error("Could not extract JSON from AI response");
       }
       
-      // Map the AI's response to our expected format
-      const analysisResults: AnalysisResults = this.mapAIResponseToAnalysisResults(analysisJson);
-      
-      return analysisResults;
+      try {
+        const analysisJson = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+        return this.mapAIResponseToAnalysisResults(analysisJson);
+      } catch (e) {
+        throw new Error("Failed to parse AI response as valid JSON");
+      }
     } catch (error) {
       console.error("Error calling OpenAI:", error);
       throw error;
     }
   }
-  
+
   /**
    * Maps the AI's JSON response to our AnalysisResults format
    */
