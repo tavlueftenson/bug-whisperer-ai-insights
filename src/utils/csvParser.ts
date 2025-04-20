@@ -27,17 +27,51 @@ export function parseCSV(csvText: string, options: CSVParseOptions = {}): CSVRow
     return [];
   }
   
-  // Split by line breaks (handle both \r\n and \n)
-  const lines = csvText.split(/\r?\n/).filter(line => line.trim());
-  if (!lines.length) {
-    return [];
+  // Split by line breaks while preserving valid lines
+  // We need to be careful not to split lines that have newlines within quoted fields
+  const rows: CSVRow[] = [];
+  let currentRow = '';
+  let inQuotes = false;
+  
+  // Process the text character by character to handle newlines within quotes correctly
+  for (let i = 0; i < csvText.length; i++) {
+    const char = csvText[i];
+    const nextChar = i < csvText.length - 1 ? csvText[i + 1] : '';
+    
+    // Handle quote character
+    if (char === quoteChar) {
+      // If this is an escaped quote (double quote in Python CSV), toggle the inQuotes flag
+      if (nextChar === quoteChar) {
+        currentRow += quoteChar; // Add the escaped quote
+        i++; // Skip the next quote
+      } else {
+        // Toggle quote state
+        inQuotes = !inQuotes;
+        currentRow += char;
+      }
+    } 
+    // Handle newlines - only split into rows if not within quotes
+    else if ((char === '\n' || (char === '\r' && nextChar === '\n')) && !inQuotes) {
+      if (char === '\r') {
+        i++; // Skip the next \n in a \r\n sequence
+      }
+      if (currentRow.trim()) {
+        rows.push(parseCSVRow(currentRow, delimiter, quoteChar));
+        currentRow = '';
+      }
+    } 
+    // All other characters
+    else {
+      currentRow += char;
+    }
   }
   
-  // Parse each row
-  const rows = lines.map(line => parseCSVRow(line, delimiter, quoteChar));
+  // Don't forget the last row if it exists
+  if (currentRow.trim()) {
+    rows.push(parseCSVRow(currentRow, delimiter, quoteChar));
+  }
   
-  // Return results with or without header
-  return hasHeader ? rows : rows;
+  return rows;
 }
 
 /**
@@ -57,11 +91,12 @@ export function parseCSVRow(row: string, delimiter = ',', quoteChar = '"'): stri
   
   while (i < row.length) {
     const char = row[i];
+    const nextChar = i < row.length - 1 ? row[i + 1] : '';
     
     // Handle quote character
     if (char === quoteChar) {
-      // Check if this is an escaped quote (represented as double quote) inside a quoted field
-      if (i + 1 < row.length && row[i + 1] === quoteChar && inQuotes) {
+      // Check if this is an escaped quote (represented as double quote in Python)
+      if (nextChar === quoteChar) {
         currentValue += quoteChar; // Add a single quote to the value
         i += 2; // Skip both quotes
         continue;
@@ -76,7 +111,7 @@ export function parseCSVRow(row: string, delimiter = ',', quoteChar = '"'): stri
     // Handle delimiter (comma) - but only if we're not inside quotes
     if (char === delimiter && !inQuotes) {
       // End of field reached
-      result.push(currentValue);
+      result.push(stripQuotes(currentValue.trim(), quoteChar));
       currentValue = '';
       i++;
       continue;
@@ -88,10 +123,23 @@ export function parseCSVRow(row: string, delimiter = ',', quoteChar = '"'): stri
   }
   
   // Add the last field
-  result.push(currentValue);
+  result.push(stripQuotes(currentValue.trim(), quoteChar));
   
-  // Trim whitespace from all fields
-  return result.map(value => value.trim());
+  return result;
+}
+
+/**
+ * Remove surrounding quotes from a field value if present
+ */
+function stripQuotes(value: string, quoteChar = '"'): string {
+  if (
+    value.length >= 2 && 
+    value.startsWith(quoteChar) && 
+    value.endsWith(quoteChar)
+  ) {
+    return value.substring(1, value.length - 1).trim();
+  }
+  return value.trim();
 }
 
 /**

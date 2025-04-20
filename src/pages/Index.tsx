@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,53 +10,7 @@ import AnalysisLoader from "@/components/AnalysisLoader";
 import { AIAnalysisService } from "@/services/aiAnalysisService";
 import { sampleDefects } from "@/data/sampleDefects";
 import { toast } from "sonner";
-
-const parseCSVRow = (row: string): string[] => {
-  if (!row.trim()) return [];
-  
-  const result: string[] = [];
-  let inQuotes = false;
-  let currentValue = '';
-  let i = 0;
-  
-  while (i < row.length) {
-    const char = row[i];
-    
-    // Handle quotes
-    if (char === '"') {
-      // Check if this is an escaped quote (double quote) inside a quoted field
-      if (i + 1 < row.length && row[i + 1] === '"' && inQuotes) {
-        currentValue += '"'; // Add a single quote to the value
-        i += 2; // Skip both quotes
-        continue;
-      }
-      
-      // Toggle quote state
-      inQuotes = !inQuotes;
-      i++; // Move to next character
-      continue;
-    }
-    
-    // Handle field separators (commas)
-    if (char === ',' && !inQuotes) {
-      // End of field reached
-      result.push(currentValue);
-      currentValue = '';
-      i++;
-      continue;
-    }
-    
-    // For all other characters, add to current value
-    currentValue += char;
-    i++;
-  }
-  
-  // Add the last field
-  result.push(currentValue);
-  
-  // Trim whitespace from all fields
-  return result.map(value => value.trim());
-};
+import { parseCSV, extractDefectHeaderMappings } from "@/utils/csvParser";
 
 const Index = () => {
   const [defects, setDefects] = useState<DefectData[]>([]);
@@ -102,39 +55,33 @@ const Index = () => {
       const csvText = await response.text();
       console.log("CSV data loaded, length:", csvText.length);
       
-      const rows = csvText.split(/\r?\n/).filter(row => row.trim()); // Filter out empty lines
-      const headerRow = rows[0];
-      const headers = parseCSVRow(headerRow);
+      const rows = parseCSV(csvText, { hasHeader: true });
+      console.log("Sample data rows:", rows.length - 1); // Subtract 1 for header
       
-      // Flexible header detection
-      const findHeaderIndex = (possibleNames: string[]) => {
-        return headers.findIndex(h => 
-          possibleNames.some(name => h.toLowerCase().includes(name.toLowerCase()))
-        );
-      };
+      if (rows.length <= 1) { // Just header or empty
+        throw new Error("Sample CSV file appears to be empty");
+      }
       
-      const subjectIndex = findHeaderIndex(['subject', 'title', 'summary']);
-      const descIndex = findHeaderIndex(['description', 'desc', 'details']);
-      const stepsIndex = findHeaderIndex(['steps', 'reproduce', 'reproduction']);
-      const actualIndex = findHeaderIndex(['actual', 'result', 'observed']);
-      const expectedIndex = findHeaderIndex(['expected', 'should', 'desired']);
-      const featureIndex = findHeaderIndex(['feature', 'module', 'component']);
-      const originIndex = findHeaderIndex(['origin', 'environment', 'env']);
-      const testCaseIndex = findHeaderIndex(['test', 'case', 'tc']);
+      const headers = rows[0];
+      
+      const {
+        subjectIndex,
+        descIndex,
+        stepsIndex,
+        actualIndex,
+        expectedIndex,
+        featureIndex,
+        originIndex,
+        testCaseIndex
+      } = extractDefectHeaderMappings(headers);
       
       const parsedDefects: DefectData[] = [];
-      // Skip header row
-      const dataRows = rows.slice(1).filter(row => row.trim());
-      console.log("Sample data rows:", dataRows.length);
+      const dataRows = rows.slice(1);
       
       for (let i = 0; i < dataRows.length; i++) {
-        const cells = parseCSVRow(dataRows[i]);
+        const cells = dataRows[i];
         
-        // Skip rows that don't have enough cells
-        if (cells.length < Math.max(
-          subjectIndex, descIndex, stepsIndex, actualIndex, 
-          expectedIndex, featureIndex, originIndex, testCaseIndex
-        ) + 1) {
+        if (cells.length <= 1) {
           console.warn(`Skipping row ${i+1} due to insufficient cells:`, cells);
           continue;
         }
@@ -324,4 +271,3 @@ const Index = () => {
 };
 
 export default Index;
-

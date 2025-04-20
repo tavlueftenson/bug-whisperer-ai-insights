@@ -61,8 +61,8 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
       let defects: DefectData[] = [];
       
       if (file.name.endsWith(".csv")) {
-        // Use our new CSV parser
-        const rows = parseCSV(text);
+        // Use our improved CSV parser with Python quote_all=True support
+        const rows = parseCSV(text, { hasHeader: true });
         console.log("Total rows detected:", rows.length);
         
         if (rows.length <= 1) { // Account for header row
@@ -140,35 +140,35 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
             };
             
             // Only set fields that exist in the CSV
-            if (subjectIndex >= 0 && subjectIndex < cells.length && cells[subjectIndex]) {
+            if (subjectIndex >= 0 && cells[subjectIndex]) {
               defect.subject = cells[subjectIndex] || "Unknown";
             }
             
-            if (descIndex >= 0 && descIndex < cells.length && cells[descIndex]) {
+            if (descIndex >= 0 && descIndex < cells.length) {
               defect.description = cells[descIndex] || "";
             }
             
-            if (stepsIndex >= 0 && stepsIndex < cells.length && cells[stepsIndex]) {
+            if (stepsIndex >= 0 && stepsIndex < cells.length) {
               defect.stepsToReproduce = cells[stepsIndex] || "";
             }
             
-            if (actualIndex >= 0 && actualIndex < cells.length && cells[actualIndex]) {
+            if (actualIndex >= 0 && actualIndex < cells.length) {
               defect.actualResult = cells[actualIndex] || "";
             }
             
-            if (expectedIndex >= 0 && expectedIndex < cells.length && cells[expectedIndex]) {
+            if (expectedIndex >= 0 && expectedIndex < cells.length) {
               defect.expectedResult = cells[expectedIndex] || "";
             }
             
-            if (featureIndex >= 0 && featureIndex < cells.length && cells[featureIndex]) {
+            if (featureIndex >= 0 && featureIndex < cells.length) {
               defect.featureTag = cells[featureIndex] || "Untagged";
             }
             
-            if (originIndex >= 0 && originIndex < cells.length && cells[originIndex]) {
+            if (originIndex >= 0 && originIndex < cells.length) {
               defect.bugOrigin = cells[originIndex] || "Unknown";
             }
             
-            if (testCaseIndex >= 0 && testCaseIndex < cells.length && cells[testCaseIndex]) {
+            if (testCaseIndex >= 0 && testCaseIndex < cells.length) {
               defect.testCaseId = cells[testCaseIndex] || "N/A";
             }
             
