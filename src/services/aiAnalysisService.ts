@@ -434,40 +434,6 @@ export class AIAnalysisService {
   }
   
   /**
-   * Generates feature distribution data for visualization
-   */
-  private static generateFeatureDistribution(defects: DefectData[]) {
-    const featureCounts: Record<string, number> = {};
-    
-    defects.forEach(defect => {
-      const feature = defect.featureTag || 'Untagged';
-      featureCounts[feature] = (featureCounts[feature] || 0) + 1;
-    });
-    
-    // Format for chart display
-    return Object.entries(featureCounts)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  }
-  
-  /**
-   * Generates origin/environment distribution data for visualization
-   */
-  private static generateOriginDistribution(defects: DefectData[]) {
-    const originCounts: Record<string, number> = {};
-    
-    defects.forEach(defect => {
-      const origin = defect.bugOrigin || 'Unknown';
-      originCounts[origin] = (originCounts[origin] || 0) + 1;
-    });
-    
-    // Format for chart display
-    return Object.entries(originCounts)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  }
-  
-  /**
    * Generates recommendations based on the analysis
    */
   private static generateRecommendations(
