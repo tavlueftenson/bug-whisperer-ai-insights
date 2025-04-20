@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { FileUp } from "lucide-react";
 import { toast } from "sonner";
 import { DefectData } from "@/components/FileUpload";
+import { parseCSV, extractDefectHeaderMappings } from "@/utils/csvParser";
 
 interface FileUploadModalProps {
   onFileUploaded: (defects: DefectData[]) => void;
@@ -37,58 +38,6 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
     }
   };
 
-  // Improved CSV row parsing with better handling of quoted fields
-  // Specifically optimized for Python-generated CSV with quote_all=True
-  const parseCSVRow = (row: string): string[] => {
-    if (!row.trim()) return [];
-    
-    // Handle case where entire row might be empty or just whitespace
-    if (row.trim() === '') return [];
-    
-    const result: string[] = [];
-    let inQuotes = false;
-    let currentValue = '';
-    let i = 0;
-    
-    while (i < row.length) {
-      const char = row[i];
-      
-      // Handle quotes
-      if (char === '"') {
-        // Check if this is an escaped quote (double quote) inside a quoted field
-        if (i + 1 < row.length && row[i + 1] === '"' && inQuotes) {
-          currentValue += '"'; // Add a single quote to the value
-          i += 2; // Skip both quotes
-          continue;
-        }
-        
-        // Toggle quote state
-        inQuotes = !inQuotes;
-        i++; // Move to next character
-        continue;
-      }
-      
-      // Handle field separators (commas)
-      if (char === ',' && !inQuotes) {
-        // End of field reached
-        result.push(currentValue);
-        currentValue = '';
-        i++;
-        continue;
-      }
-      
-      // For all other characters, add to current value
-      currentValue += char;
-      i++;
-    }
-    
-    // Add the last field
-    result.push(currentValue);
-    
-    // Trim whitespace from all fields
-    return result.map(value => value.trim());
-  };
-
   // Function to extract value after a label
   const extractValueAfterLabel = (line: string): string => {
     const colonIndex = line.indexOf(":");
@@ -112,34 +61,28 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
       let defects: DefectData[] = [];
       
       if (file.name.endsWith(".csv")) {
-        // CSV parsing logic with improved quoted field handling
-        const rows = text.split(/\r?\n/).filter(row => row.trim()); // Filter out empty lines
+        // Use our new CSV parser
+        const rows = parseCSV(text);
         console.log("Total rows detected:", rows.length);
         
-        if (rows.length === 0) {
-          throw new Error("CSV file appears to be empty");
+        if (rows.length <= 1) { // Account for header row
+          throw new Error("CSV file appears to be empty or contains only headers");
         }
         
-        const headerRow = rows[0];
-        const headers = parseCSVRow(headerRow);
+        const headers = rows[0];
         console.log("CSV Headers detected:", headers);
         
-        // More flexible header mapping with fallbacks
-        const findHeaderIndex = (possibleNames: string[]) => {
-          return headers.findIndex(h => 
-            possibleNames.some(name => h.toLowerCase().includes(name.toLowerCase()))
-          );
-        };
-        
-        // Map headers to expected fields with multiple possible matches
-        const subjectIndex = findHeaderIndex(['subject', 'title', 'summary', 'issue', 'bug']);
-        const descIndex = findHeaderIndex(['description', 'desc', 'details', 'summary']);
-        const stepsIndex = findHeaderIndex(['steps', 'reproduce', 'reproduction', 'how to']);
-        const actualIndex = findHeaderIndex(['actual', 'result', 'observed', 'outcome']);
-        const expectedIndex = findHeaderIndex(['expected', 'should', 'desired']);
-        const featureIndex = findHeaderIndex(['feature', 'module', 'component', 'area', 'func']);
-        const originIndex = findHeaderIndex(['origin', 'environment', 'env', 'found in', 'source']);
-        const testCaseIndex = findHeaderIndex(['test', 'case', 'tc', 'testcase']);
+        // Extract header mappings using our utility
+        const {
+          subjectIndex,
+          descIndex,
+          stepsIndex,
+          actualIndex,
+          expectedIndex,
+          featureIndex,
+          originIndex,
+          testCaseIndex
+        } = extractDefectHeaderMappings(headers);
         
         console.log("Field mappings:", {
           subject: subjectIndex,
@@ -159,7 +102,7 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
         }
         
         // Process data rows only (skip header)
-        const dataRows = rows.slice(1).filter(row => row.trim());
+        const dataRows = rows.slice(1).filter(row => row.length > 0);
         console.log("Data rows to process:", dataRows.length);
         
         // Create a set to track IDs to avoid duplicates
@@ -168,14 +111,10 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
         // Process each row
         for (let i = 0; i < dataRows.length; i++) {
           try {
-            // Skip rows that are clearly just whitespace
-            if (!dataRows[i].trim()) continue;
+            const cells = dataRows[i];
             
-            const cells = parseCSVRow(dataRows[i]);
-            console.log(`Row ${i+1} parsed cells:`, cells.length);
-            
-            // Skip rows with insufficient cells
-            if (cells.length <= 1 || (subjectIndex >= 0 && cells[subjectIndex]?.trim() === "")) {
+            // Skip rows with insufficient cells or empty subject
+            if (cells.length <= 1 || (subjectIndex >= 0 && !cells[subjectIndex])) {
               console.warn(`Skipping row ${i+1} - insufficient data`);
               continue;
             }
@@ -202,35 +141,35 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
             
             // Only set fields that exist in the CSV
             if (subjectIndex >= 0 && subjectIndex < cells.length && cells[subjectIndex]) {
-              defect.subject = cells[subjectIndex]?.trim() || "Unknown";
+              defect.subject = cells[subjectIndex] || "Unknown";
             }
             
             if (descIndex >= 0 && descIndex < cells.length && cells[descIndex]) {
-              defect.description = cells[descIndex]?.trim() || "";
+              defect.description = cells[descIndex] || "";
             }
             
             if (stepsIndex >= 0 && stepsIndex < cells.length && cells[stepsIndex]) {
-              defect.stepsToReproduce = cells[stepsIndex]?.trim() || "";
+              defect.stepsToReproduce = cells[stepsIndex] || "";
             }
             
             if (actualIndex >= 0 && actualIndex < cells.length && cells[actualIndex]) {
-              defect.actualResult = cells[actualIndex]?.trim() || "";
+              defect.actualResult = cells[actualIndex] || "";
             }
             
             if (expectedIndex >= 0 && expectedIndex < cells.length && cells[expectedIndex]) {
-              defect.expectedResult = cells[expectedIndex]?.trim() || "";
+              defect.expectedResult = cells[expectedIndex] || "";
             }
             
             if (featureIndex >= 0 && featureIndex < cells.length && cells[featureIndex]) {
-              defect.featureTag = cells[featureIndex]?.trim() || "Untagged";
+              defect.featureTag = cells[featureIndex] || "Untagged";
             }
             
             if (originIndex >= 0 && originIndex < cells.length && cells[originIndex]) {
-              defect.bugOrigin = cells[originIndex]?.trim() || "Unknown";
+              defect.bugOrigin = cells[originIndex] || "Unknown";
             }
             
             if (testCaseIndex >= 0 && testCaseIndex < cells.length && cells[testCaseIndex]) {
-              defect.testCaseId = cells[testCaseIndex]?.trim() || "N/A";
+              defect.testCaseId = cells[testCaseIndex] || "N/A";
             }
             
             defects.push(defect);
