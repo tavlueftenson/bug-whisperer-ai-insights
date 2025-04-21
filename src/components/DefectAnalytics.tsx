@@ -1,10 +1,10 @@
-
-import React from "react";
+import React, { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { DefectData } from "./FileUpload";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { toast } from "sonner";
 
 interface DefectAnalyticsProps {
   defects: DefectData[];
@@ -36,21 +36,51 @@ const CHART_COLORS = [
 ];
 
 export const DefectAnalytics: React.FC<DefectAnalyticsProps> = ({ defects, analysis }) => {
-  // Debug logs to verify data
-  console.log("DefectAnalytics received analysis:", analysis);
-  console.log("Root Causes:", analysis.rootCauses);
-  console.log("Feature Distribution:", analysis.featureDistribution);
-  console.log("Origin Distribution:", analysis.originDistribution);
+  // Enhanced debug logging on component mount
+  useEffect(() => {
+    console.log("DefectAnalytics received analysis:", analysis);
+    console.log("Root Causes data:", analysis.rootCauses);
+    console.log("Root Causes type:", typeof analysis.rootCauses);
+    console.log("Feature Distribution data:", analysis.featureDistribution);
+    console.log("Origin Distribution data:", analysis.originDistribution);
+    
+    // Check for empty or invalid data structures
+    const hasValidRootCauses = Array.isArray(analysis.rootCauses) && analysis.rootCauses.length > 0;
+    const hasValidFeatureDistribution = Array.isArray(analysis.featureDistribution) && analysis.featureDistribution.length > 0;
+    const hasValidOriginDistribution = Array.isArray(analysis.originDistribution) && analysis.originDistribution.length > 0;
+    
+    if (!hasValidRootCauses || !hasValidFeatureDistribution || !hasValidOriginDistribution) {
+      toast.warning("Some analysis data may be missing or incomplete");
+    }
+  }, [analysis]);
 
-  // Ensure data exists and has proper format before rendering
-  const hasRootCauses = Array.isArray(analysis.rootCauses) && analysis.rootCauses.length > 0;
-  const hasFeatureDistribution = Array.isArray(analysis.featureDistribution) && analysis.featureDistribution.length > 0;
-  const hasOriginDistribution = Array.isArray(analysis.originDistribution) && analysis.originDistribution.length > 0;
-
-  // Create fallback data if needed
-  const rootCausesData = hasRootCauses ? analysis.rootCauses : [{ name: "No data available", value: 0 }];
-  const featureDistributionData = hasFeatureDistribution ? analysis.featureDistribution : [{ name: "No data available", value: 1 }];
-  const originDistributionData = hasOriginDistribution ? analysis.originDistribution : [{ name: "No data available", value: 1 }];
+  // Process data with strong validations to ensure chart compatibility
+  const processChartData = (data: any[], defaultName = "No data available"): { name: string; value: number }[] => {
+    if (!Array.isArray(data) || data.length === 0) {
+      return [{ name: defaultName, value: 0 }];
+    }
+    
+    // Ensure all items have proper name and value properties
+    return data.map(item => {
+      if (typeof item !== 'object' || item === null) {
+        return { name: "Invalid data", value: 0 };
+      }
+      return {
+        name: typeof item.name === 'string' ? item.name : "Unnamed",
+        value: typeof item.value === 'number' ? item.value : 0
+      };
+    });
+  };
+  
+  // Create strongly validated data for charts
+  const rootCausesData = processChartData(analysis.rootCauses, "No root cause data");
+  const featureDistributionData = processChartData(analysis.featureDistribution, "No feature data");
+  const originDistributionData = processChartData(analysis.originDistribution, "No origin data");
+  
+  // Ensure we have valid data before rendering
+  const hasRootCauses = rootCausesData.some(item => item.value > 0);
+  const hasFeatureDistribution = featureDistributionData.some(item => item.value > 0);
+  const hasOriginDistribution = originDistributionData.some(item => item.value > 0);
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -60,9 +90,9 @@ export const DefectAnalytics: React.FC<DefectAnalyticsProps> = ({ defects, analy
           <CardTitle className="text-sm font-medium">Rework Rate</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{analysis.reworkRate}%</div>
+          <div className="text-2xl font-bold">{analysis.reworkRate ?? 0}%</div>
           <p className="text-xs text-muted-foreground">Percentage of defects requiring rework</p>
-          <Progress className="h-2 mt-2" value={analysis.reworkRate} />
+          <Progress className="h-2 mt-2" value={analysis.reworkRate ?? 0} />
         </CardContent>
       </Card>
       <Card>
@@ -115,7 +145,7 @@ export const DefectAnalytics: React.FC<DefectAnalyticsProps> = ({ defects, analy
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex h-full items-center justify-center text-muted-foreground">
-                    No root cause data available
+                    No root cause data available. Try uploading more defect data.
                   </div>
                 )}
               </div>
@@ -147,7 +177,7 @@ export const DefectAnalytics: React.FC<DefectAnalyticsProps> = ({ defects, analy
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex h-full items-center justify-center text-muted-foreground">
-                    No feature distribution data available
+                    No feature distribution data available. Try uploading more defect data.
                   </div>
                 )}
               </div>
@@ -179,7 +209,7 @@ export const DefectAnalytics: React.FC<DefectAnalyticsProps> = ({ defects, analy
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex h-full items-center justify-center text-muted-foreground">
-                    No origin distribution data available
+                    No origin distribution data available. Try uploading more defect data.
                   </div>
                 )}
               </div>
